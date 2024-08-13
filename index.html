@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Learning World - Login</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #000;
+            color: #fff;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background-color: rgba(0, 0, 0, 0.8);
+            border-radius: 10px;
+            padding: 2rem;
+            box-shadow: 0 0 20px rgba(0, 200, 255, 0.3);
+            max-width: 400px;
+            width: 100%;
+        }
+        h1, h2 {
+            color: #00c8ff;
+            text-align: center;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 5px;
+            background-color: #333;
+            color: #fff;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 5px;
+            background-color: #00c8ff;
+            color: #000;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0099cc;
+        }
+        #user-container, #admin-panel {
+            text-align: center;
+        }
+        #player-data, #admin-panel {
+            background-color: #333;
+            border-radius: 5px;
+            padding: 1rem;
+            margin-top: 1rem;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        #admin-panel {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome to Learning World</h1>
+        <div id="login-container">
+            <h2>Login</h2>
+            <input type="text" id="username" placeholder="Username" required>
+            <input type="email" id="email" placeholder="Email" required>
+            <input type="password" id="password" placeholder="Password" required>
+            <button onclick="login()">Login</button>
+            <button onclick="register()">Register</button>
+            <button onclick="loginWithGoogle()">Login with Google</button>
+        </div>
+        <div id="user-container" style="display: none;">
+            <h2>Welcome, <span id="user-name"></span>!</h2>
+            <button onclick="logout()">Logout</button>
+            <div id="player-data"></div>
+        </div>
+                <div id="game-link" style="display: none;">
+            <a href="game.html">Enter the Game World</a>
+        </div>
+    </div>
+        <div id="admin-panel">
+            <h2>Admin Panel</h2>
+            <input type="text" id="delete-username" placeholder="Username to delete">
+            <button onclick="deleteAccount()">Delete Account</button>
+        </div>
+    </div>
+
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-analytics.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+        import { getDatabase, ref, set, get, remove } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyB__fVdlAvLWM0ZlmV8xSjHOHz1yBjU4ck",
+            authDomain: "pengucentral-30a06.firebaseapp.com",
+            projectId: "pengucentral-30a06",
+            storageBucket: "pengucentral-30a06.appspot.com",
+            messagingSenderId: "64788457575",
+            appId: "1:64788457575:web:313bf74297edca35f88cc2",
+            measurementId: "G-GSDGKWYF8L",
+            databaseURL: "https://pengucentral-30a06-default-rtdb.firebaseio.com/"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const auth = getAuth(app);
+        const database = getDatabase(app);
+
+        // Get elements
+        const loginContainer = document.getElementById('login-container');
+        const userContainer = document.getElementById('user-container');
+        const userNameSpan = document.getElementById('user-name');
+        const playerDataDiv = document.getElementById('player-data');
+        const adminPanel = document.getElementById('admin-panel');
+
+        // Login function
+        window.login = function() {
+            const username = document.getElementById('username').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            signInWithEmailAndPassword(auth, email, password)
+                .then((userCredential) => {
+                    const user = userCredential.user;
+                    console.log("Logged in:", user);
+                    loadPlayerData(user.uid, username);
+                })
+                .catch((error) => {
+                    console.error("Login error:", error);
+                    alert("Login failed: " + error.message);
+                });
+        }
+
+        // Register function
+        window.register = function() {
+            const username = document.getElementById('username').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            createUserWithEmailAndPassword(auth, email, password)
+                .then((userCredential) => {
+                    const user = userCredential.user;
+                    console.log("Registered:", user);
+                    createPlayerData(user.uid, username, email);
+                })
+                .catch((error) => {
+                    console.error("Registration error:", error);
+                    alert("Registration failed: " + error.message);
+                });
+        }
+
+        // Login with Google function
+        window.loginWithGoogle = function() {
+            const provider = new GoogleAuthProvider();
+            signInWithPopup(auth, provider)
+                .then((result) => {
+                    const user = result.user;
+                    console.log("Logged in with Google:", user);
+                    loadPlayerData(user.uid, user.displayName);
+                })
+                .catch((error) => {
+                    console.error("Google login error:", error);
+                    alert("Google login failed: " + error.message);
+                });
+        }
+
+        // Logout function
+        window.logout = function() {
+            signOut(auth)
+                .then(() => {
+                    console.log("Logged out");
+                })
+                .catch((error) => {
+                    console.error("Logout error:", error);
+                });
+        }
+
+        // Create player data function
+        function createPlayerData(userId, username, email) {
+            const playerRef = ref(database, 'players/' + userId);
+            set(playerRef, {
+                username: username,
+                email: email,
+                level: 1,
+                rank: "player",
+                inventory: "[]",
+                isBanned: false,
+                lastIpLoggedIn: "0.0.0.0"
+            }).then(() => {
+                console.log("Player data created");
+                loadPlayerData(userId, username);
+            }).catch((error) => {
+                console.error("Error creating player data:", error);
+            });
+        }
+
+        // Load player data function
+        function loadPlayerData(userId, username) {
+            const playerRef = ref(database, 'players/' + userId);
+            get(playerRef).then((snapshot) => {
+                if (snapshot.exists()) {
+                    const playerData = snapshot.val();
+                    displayPlayerData(playerData);
+                    if (playerData.rank === "owner") {
+                        adminPanel.style.display = "block";
+                    } else {
+                        adminPanel.style.display = "none";
+                    }
+                } else {
+                    console.log("No data available");
+                    playerDataDiv.innerHTML = "No player data available.";
+                }
+            }).catch((error) => {
+                console.error(error);
+                playerDataDiv.innerHTML = "Error loading player data.";
+            });
+        }
+
+        // Display player data function
+        function displayPlayerData(data) {
+            let html = "<h3>Player Data:</h3>";
+            for (let key in data) {
+                html += `<p><strong>${key}:</strong> ${data[key]}</p>`;
+            }
+            playerDataDiv.innerHTML = html;
+        }
+
+        // Delete account function
+        window.deleteAccount = function() {
+            const usernameToDelete = document.getElementById('delete-username').value;
+            const usersRef = ref(database, 'players');
+            get(usersRef).then((snapshot) => {
+                if (snapshot.exists()) {
+                    const users = snapshot.val();
+                    for (let userId in users) {
+                        if (users[userId].username === usernameToDelete) {
+                            remove(ref(database, 'players/' + userId))
+                                .then(() => {
+                                    alert(`Account for ${usernameToDelete} has been deleted.`);
+                                })
+                                .catch((error) => {
+                                    console.error("Error deleting account:", error);
+                                    alert("Failed to delete account.");
+                                });
+                            return;
+                        }
+                    }
+                    alert("Username not found.");
+                } else {
+                    alert("No users found in database.");
+                }
+            }).catch((error) => {
+                console.error("Error searching for user:", error);
+                alert("Error searching for user.");
+            });
+        }
+
+        // Auth state change listener
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                loginContainer.style.display = 'none';
+                userContainer.style.display = 'block';
+                userNameSpan.textContent = user.displayName || user.email;
+                loadPlayerData(user.uid, user.displayName);
+            } else {
+                loginContainer.style.display = 'block';
+                userContainer.style.display = 'none';
+                adminPanel.style.display = 'none';
+                playerDataDiv.innerHTML = "";
+            }
+        });
+    </script>
+</body>
+</html>
